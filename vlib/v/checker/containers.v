@@ -217,17 +217,16 @@ fn (mut c Checker) array_init(mut node ast.ArrayInit) ast.Type {
 				}
 				if !elem_type.has_flag(.option)
 					&& (typ.has_flag(.option) || typ.idx() == ast.none_type_idx) {
-					typ_str, elem_type_str := c.get_string_names_of(typ, elem_type)
 					if typ.idx() == ast.none_type_idx {
-						c.error('cannot use `${typ_str}` as `${elem_type_str}`', expr.pos())
+						c.error(c.type_error_as_ast(typ, elem_type), expr.pos())
 					} else {
-						c.error('cannot use `${typ_str}` as `${elem_type_str}`, it must be unwrapped first',
+						c.error(error_must_unwrap(c.type_error_as_ast(typ, elem_type))), 
 							expr.pos())
 					}
 				} else if elem_type.has_flag(.option) && !typ.has_flag(.option)
 					&& typ.idx() != ast.none_type_idx && !expr.is_pure_literal() {
 					typ_str, elem_type_str := c.get_string_names_of(typ, elem_type)
-					c.error('cannot use `${typ_str}` as `${elem_type_str}`', expr.pos())
+					c.error(c.type_error_as_ast(typ, elem_type), expr.pos())
 				}
 			}
 		}

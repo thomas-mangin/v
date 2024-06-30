@@ -231,7 +231,7 @@ fn (mut c Checker) check_expected_call_arg(got ast.Type, expected_ ast.Type, lan
 				|| arg.expr is ast.None
 			if (expected.is_ptr() && !got_is_ptr) || (!expected.is_ptr() && got.is_ptr()) {
 				got_typ_str, expected_typ_str := c.get_string_names_of(got, expected)
-				return error('cannot use `${got_typ_str}` as `${expected_typ_str}`')
+				return error(c.type_error_as_ast(got, expected))
 			}
 		}
 
@@ -241,15 +241,13 @@ fn (mut c Checker) check_expected_call_arg(got ast.Type, expected_ ast.Type, lan
 		if expected.is_ptr() && got.is_ptr() && exp_sym_idx != got_sym_idx
 			&& exp_sym_idx in [ast.u8_type_idx, ast.byteptr_type_idx]
 			&& got_sym_idx !in [ast.u8_type_idx, ast.byteptr_type_idx] {
-			got_typ_str, expected_typ_str := c.get_string_names_of(got, expected)
-			return error('cannot use `${got_typ_str}` as `${expected_typ_str}`')
+			return error(c.type_error_as_ast(got, expected))
 		}
 
 		if !expected.has_flag(.option) && got.has_flag(.option)
 			&& (!(arg.expr is ast.Ident || arg.expr is ast.ComptimeSelector)
 			|| (arg.expr is ast.Ident && c.comptime.get_ct_type_var(arg.expr) != .field_var)) {
-			got_typ_str, expected_typ_str := c.get_string_names_of(got, expected)
-			return error('cannot use `${got_typ_str}` as `${expected_typ_str}`, it must be unwrapped first')
+			return error(error_must_unwrap(type_error_as_ast(got, expected))
 		}
 	}
 	// check int signed/unsigned mismatch
@@ -306,8 +304,7 @@ fn (mut c Checker) check_expected_call_arg(got ast.Type, expected_ ast.Type, lan
 				|| !c.check_same_module(got, expected)
 				|| (!got.is_ptr() && !expected.is_ptr()
 				&& got_typ_sym.name != expected_typ_sym.name) {
-				got_typ_str, expected_typ_str := c.get_string_names_of(got, expected)
-				return error('cannot use `${got_typ_str}` as `${expected_typ_str}`')
+				return error(c.type_error_as_ast(got, expected))
 			}
 			return
 		}
@@ -315,12 +312,12 @@ fn (mut c Checker) check_expected_call_arg(got ast.Type, expected_ ast.Type, lan
 			return error('`${arg.expr}` (no value) used as value')
 		}
 		got_typ_str, expected_typ_str := c.get_string_names_of(got, expected)
-		return error('cannot use `${got_typ_str}` as `${expected_typ_str}`')
+		return error(c.type_error_as_ast(got, expected))
 	}
 
 	if got != ast.void_type {
 		got_typ_str, expected_typ_str := c.get_string_names_of(got, expected)
-		return error('cannot use `${got_typ_str}` as `${expected_typ_str}`')
+		return error(c.type_error_as_ast(got, expected))
 	}
 }
 
@@ -1135,4 +1132,21 @@ fn (mut c Checker) is_contains_any_kind_of_pointer(typ ast.Type, mut checked_typ
 		else {}
 	}
 	return false
+}
+
+fn (c Checker) type_error_as_ast(got ast.Type, expected_ ast.Type) string {
+	got_typ_str, expected_typ_str := c.get_string_names_of(got, expected)
+	message := 'cannot use `${got_typ_str}` as `${expected_typ_str}`'
+	// add suggestion for correction (for example array to slice with ..)
+	return message
+}
+
+@[inline]
+fn error_must_unwrap(message string, comment string) string {
+	return '${message}, it must be unwrapped first'
+}
+
+@[inline]
+fn error_suggests(message string, comment string) string {
+	return '${message}; ${comment}'
 }
